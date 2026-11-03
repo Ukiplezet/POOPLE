@@ -2,6 +2,8 @@
 
 A daily word-ladder game. Every day you get a 4-letter word. Change one letter at a time, with every step a real 4-letter word, until you reach **POOP**. Fewest steps wins.
 
+https://poople-rho.vercel.app
+
 ## How it works
 
 - **Daily word:** one of 558 start words, picked by date. It resets at midnight, Israel time. Every start word reaches POOP in 3–7 steps.
