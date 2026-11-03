@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>POOPLE</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Figtree:wght@400;600;800&display=swap">
+<style>
+/* Layout: one narrow column on a bathroom-tile wall — ladder of word tiles, keyboard, then the daily scoreboard. */
+:root {
+  --wall: #e3f1ee;          /* mint tile */
+  --grout: #cfe3df;
+  --card: #ffffff;
+  --ink: #2a2522;
+  --muted: #6c7471;
+  --brown: #7a4a2b;         /* the accent */
+  --brown-soft: #f1e4d9;
+  --changed: #e9b44c;       /* the letter you swapped */
+  --hit: #7a4a2b;           /* letter already matching POOP */
+  --hit-ink: #fff8f0;
+  --tile: #ffffff;
+  --tile-line: #b9cfca;
+  --key: #d4e6e2;
+  --key-ink: #2a2522;
+  --bad: #c2412f;
+  --font-display: "Lilita One", "Arial Rounded MT Bold", "Trebuchet MS", sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --wall: #14211f; --grout: #1b2d2a; --card: #1d2826; --ink: #f1ece6; --muted: #9db0ab;
+  --brown: #c98a5c; --brown-soft: #33271f; --changed: #d9a43f; --hit: #a8693f; --hit-ink: #fff8f0;
+  --tile: #22302d; --tile-line: #3b524d; --key: #2c3d3a; --key-ink: #f1ece6; --bad: #ef7a63;
+  color-scheme: dark } }
+:root[data-theme="dark"] {
+  --wall: #14211f; --grout: #1b2d2a; --card: #1d2826; --ink: #f1ece6; --muted: #9db0ab;
+  --brown: #c98a5c; --brown-soft: #33271f; --changed: #d9a43f; --hit: #a8693f; --hit-ink: #fff8f0;
+  --tile: #22302d; --tile-line: #3b524d; --key: #2c3d3a; --key-ink: #f1ece6; --bad: #ef7a63;
+  color-scheme: dark }
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--wall);
+  background-image:
+    linear-gradient(var(--grout) 2px, transparent 2px),
+    linear-gradient(90deg, var(--grout) 2px, transparent 2px);
+  background-size: 56px 56px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+main { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+
+header { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 2.6rem; letter-spacing: .04em; margin: 0; line-height: 1; }
+h1 .oo { color: var(--brown); }
+.meta { font-size: .8rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; text-align: right; }
+.meta b { color: var(--ink); }
+
+.panel { background: var(--card); border-radius: 14px; padding: 16px; box-shadow: 0 1px 0 var(--grout), 0 8px 24px -16px rgba(0,0,0,.35); }
+.rules { font-size: .92rem; color: var(--muted); margin: 0; }
+.rules strong { color: var(--ink); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--muted); margin-top: 8px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+.ladder { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.row { display: grid; grid-template-columns: 2.2rem repeat(4, 3.1rem); gap: 6px; align-items: center; }
+.row .n { font-size: .75rem; color: var(--muted); text-align: right; padding-right: 4px; font-variant-numeric: tabular-nums; font-weight: 600; }
+.tile {
+  width: 3.1rem; height: 3.1rem; display: grid; place-items: center;
+  font-family: var(--font-display); font-size: 1.7rem; text-transform: uppercase;
+  background: var(--tile); border: 2px solid var(--tile-line); border-radius: 8px; color: var(--ink);
+}
+.tile.changed { background: var(--changed); border-color: var(--changed); color: #2a2522; }
+.tile.hit { background: var(--hit); border-color: var(--hit); color: var(--hit-ink); }
+.tile.typing { border-color: var(--ink); }
+.row.start .tile { border-style: solid; }
+.row.goal .tile { background: transparent; border-style: dashed; color: var(--brown); border-color: var(--brown); }
+.row.goal.done { display: none; }
+.row.current.shake { animation: shake .35s; }
+@keyframes shake { 20%,60% { transform: translateX(-6px) } 40%,80% { transform: translateX(6px) } }
+.row.win .tile { animation: pop .45s ease both; }
+.row.win .tile:nth-child(3) { animation-delay: .06s } .row.win .tile:nth-child(4) { animation-delay: .12s } .row.win .tile:nth-child(5) { animation-delay: .18s }
+@keyframes pop { 50% { transform: scale(1.15) rotate(-4deg) } }
+.dots { color: var(--muted); font-size: .8rem; letter-spacing: .3em; }
+
+.status { min-height: 1.4em; text-align: center; font-weight: 600; font-size: .95rem; }
+.status.err { color: var(--bad); }
+
+.tools { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+button { font-family: var(--font-body); cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--brown); outline-offset: 2px; }
+.btn { border: 2px solid var(--ink); background: transparent; color: var(--ink); border-radius: 999px; padding: 6px 14px; font-weight: 600; font-size: .85rem; }
+.btn.primary { background: var(--brown); border-color: var(--brown); color: var(--hit-ink); }
+.btn:disabled { opacity: .4; cursor: default; }
+
+.kb { display: flex; flex-direction: column; gap: 6px; user-select: none; }
+.kb .kr { display: flex; gap: 5px; justify-content: center; }
+.kb button {
+  flex: 1 1 0; min-width: 0; max-width: 2.6rem; height: 3.2rem; border: 0; border-radius: 6px;
+  background: var(--key); color: var(--key-ink); font-weight: 800; font-size: .95rem; text-transform: uppercase;
+}
+.kb button.wide { max-width: 4.2rem; flex: 1.6 1 0; font-size: .72rem; }
+.kb button.goal-letter { box-shadow: inset 0 -3px 0 var(--brown); }
+.kb button:active { transform: translateY(1px); }
+
+.result h2, .board h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.5rem; margin: 0 0 4px; letter-spacing: .02em; }
+.result p { margin: 4px 0; }
+.score-line { font-size: 1.05rem; }
+.score-line .big { font-family: var(--font-display); font-size: 2rem; color: var(--brown); }
+.par-tag { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 800; font-size: .8rem; background: var(--brown-soft); color: var(--brown); }
+.optimal { font-size: .88rem; color: var(--muted); }
+.optimal code { font-family: var(--font-body); font-weight: 800; color: var(--ink); text-transform: uppercase; letter-spacing: .05em; }
+.namefield { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.namefield input { flex: 1 1 160px; min-width: 0; padding: 8px 12px; border-radius: 10px; border: 2px solid var(--tile-line); background: var(--tile); color: var(--ink); font: inherit; }
+.share-out { margin-top: 8px; font-size: .8rem; color: var(--muted); }
+
+.tabs { display: flex; gap: 6px; margin: 8px 0 10px; }
+.tabs button { border: 0; background: var(--key); color: var(--ink); padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: .85rem; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--card); }
+table { width: 100%; border-collapse: collapse; font-size: .92rem; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; padding: 4px 6px; }
+td { padding: 8px 6px; border-top: 1px solid var(--grout); }
+td.num, th.num { text-align: right; }
+tr.me td { background: var(--brown-soft); }
+tr.me td:first-child { border-radius: 8px 0 0 8px; } tr.me td:last-child { border-radius: 0 8px 8px 0; }
+.rank { font-family: var(--font-display); font-size: 1.1rem; color: var(--brown); width: 2rem; }
+.who { min-width: 0; overflow-wrap: anywhere; }
+.empty, .note { color: var(--muted); font-size: .9rem; margin: 6px 0; }
+.wrap { overflow-x: auto; }
+footer { text-align: center; font-size: .78rem; color: var(--muted); }
+
+@media (max-width: 380px) {
+  .row { grid-template-columns: 1.6rem repeat(4, 2.7rem); }
+  .tile { width: 2.7rem; height: 2.7rem; font-size: 1.45rem; }
+  h1 { font-size: 2.1rem; }
+}
+@media (prefers-reduced-motion: reduce) { .row.current.shake, .row.win .tile { animation: none; } }
+</style>
+
+<main>
+  <header>
+    <h1>P<span class="oo">OO</span>PLE</h1>
+    <div class="meta">Puzzle <b id="pnum">#1</b> · <span id="pdate"></span><br>Next in <b id="countdown">--:--:--</b></div>
+  </header>
+
+  <section class="panel" aria-label="How to play">
+    <p class="rules">Turn today's word into <strong>POOP</strong>. Change <strong>one letter</strong> per step, and every step must be a real 4-letter word. Fewest steps tops the board. <strong>Par</strong> is the shortest ladder using everyday words. Beat it with obscure ones if you can.</p>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--changed)"></i>letter you changed</span>
+      <span><i class="sw" style="background:var(--hit)"></i>already matches POOP</span>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Game">
+    <div class="ladder" id="ladder"></div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div class="tools">
+      <button class="btn" id="undo" type="button">Undo last step</button>
+      <button class="btn" id="reset" type="button">Start over</button>
+    </div>
+  </section>
+
+  <section class="kb" id="kb" aria-label="Keyboard"></section>
+
+  <section class="panel result" id="result" hidden>
+    <h2>You made POOP</h2>
+    <p class="score-line"><span class="big" id="rsteps">0</span> steps <span class="par-tag" id="rpar"></span></p>
+    <p class="optimal" id="roptimal"></p>
+    <div class="namefield" id="namebox" hidden>
+      <input id="nick" type="text" maxlength="20" placeholder="Name on the scoreboard" autocomplete="nickname">
+      <button class="btn primary" id="submit" type="button">Post score</button>
+    </div>
+    <p class="note" id="postnote"></p>
+    <div class="tools" style="justify-content:flex-start;margin-top:8px">
+      <button class="btn" id="share" type="button">Copy result</button>
+    </div>
+    <p class="share-out" id="shareout"></p>
+  </section>
+
+  <section class="panel board" aria-label="Scoreboard">
+    <h2>Scoreboard</h2>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tab-today" aria-selected="true">Today</button>
+      <button type="button" role="tab" id="tab-all" aria-selected="false">All time</button>
+    </div>
+    <div class="wrap" id="board"><p class="empty">Loading scores…</p></div>
+  </section>
+
+  <footer>New word every day at midnight (Israel time). One scored run per player per day.</footer>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const WORDS = new Set("aaas abba abbe abby abed abel abet abit able ably abra abut acca acer ache achy acid acme acne acre acta acth acts actu acyl adam adar adat adda addy adit aeon aero afar agar aged agee agen ager agha agog agon agra agua ahem ahoy aide aint ainu aion aire airy ajar akan akin akka alan alas alba albi alco alec alen alex alfa alga alif alix alle ally alma alms aloe also alto alum amar amba ambo amen amex amid amin amir amit amla amma ammi ammo amok amor amos amoy amyl anal anan anas anat anda andi andy anew anil anis ankh anna anne anon ansa anta ante anti anus apex apia apis apse apus aqua arab arad arak arca arch area argo aria arid arms army arne arse arty arum arya aryl asha ashy asse assi asta atar aten atma atom atop atta atte augh auld aunt aura auto aver aves avid avis awan away awol awry axed axel axes axis axle axon ayah baal baar baba babe babi babs babu baby bach back bade baga bago baht bail bain bait baka bake baku bala bald bale bali balk ball balm balu bana banc band bane bang bani bank bara barb bard bare bari bark barn bart baru base bash bask bass bast bate bath bats batt baud bawl bays baze bead beak beal beam bean bear beat beau beck bede beef beek been beer bees beet bega behn bela belk bell belt bend bene beng beni benj benn bent bere berg beri berm bern bert bess best beta bete beth bevy bhat bias bibb bibi bice bick bide bien bier biff bigg bike bile bilk bill bind bing binh bint bios bird birk biro birr birt bish bite blab blah blas bled blew blip blob bloc blot blow blue blur boar boat boba bobo bock bode bodo body boer boff bogo boho boil bois bola bold bole boll bolo bolt boma bomb bond bone bong boni bonk bony boob boof book bool boom boon boor boot bora bord bore borg born boro bort bosa bose bosh boss bote both bots bott bout bowl boxy boyd bozo brad brae brag bram bran brat bray bred bree bren bret brew brie brig brim brin bris brit brod brow bruh brun brut buck buda buff buhl bulb bulk bull bump buna bund bung bunk bunn buns bunt buoy burd bure burg buri burl burn burp burr burt bury bush busk buss bust busy bute butt buzz caca cade cady cafe cage cain cake calf cali call calm came camp cana cand cane cant cape cara card care carl caro carp carr cart cary casa case cash cask cass cast cata cate caul cava cave cayo cebu cede cell celt cent cere cern cero cess cest ceti chad chai chal cham chao chap char chat chaw chay chee chef chen ches chet chew chia chic chih chil chin chip chit choc chol chop chou chow chub chug chum chun cima cine circ cite city clad clam clan clap claw clay clef clem clio clip clit clod clog clop clot clow club clue coal coan coat coax coca cock coco coda code coed coho coif coil coin coir coit coke cola cold cole coli coll colt coma comb come cond cone cong conn cook cool coon coop coos coot copa cope cops copy cora cord core cork corn corp cory cosh coss cost cosy cote coul coup cove cowl cows cozy crab crag cram cran crap craw cray crea cree crew crib cris croc crom crop crow crud crum crus crux cuba cube cuck cuff cull cult cunt curb curd cure curl curr curt cush cusp cuss cute cyan cyst czar dace dada dade dado daft dail dain dais dale dali dama dame damn damp dana dane dang dani dank dard dare dari dark darn darr dart dash data date daub daud daun dave davy dawe dawn days daze dbms dead deaf deal dean dear debi debt deck dede deed deem deep deer dees deft defy dele dell demi dene dent deny dere derk derm dern desi desk dess deva deve devi dewy dhan dhow dial dian dibs dice dich dick dido diem dier diet digs dike dill dime dine ding dink dint diol dion dire dirk dirt disa disc dish disk diss dita diva dive djia dock dodd dodo doer does doff doge dogs doha doit doke dole doll dolt dome dona done dong donn dont doom doon doop door dopa dope dora dori dork dorm dorn dorr dory dosa dose doss dost dote doth doto doty doug dour dove dowd down doze drab drag dram draw dray drew drip drop drow drug drum dual duan dubs duck duct dude duds duel duet duff duke dull duly duma dumb dump dune dung dunk duns dupe dura duro dusk dust duty dyad dyce dyed dyer dyke dyne each earl earn ease east easy eats eave eben ebon echo edda eddy eden edge edgy edit edna eggy eire elan elia elke ella elle elon elsa else emil emir emit emma empt enid enos envy epic epos ergo eric erie erik erin erma erne eros esca espy etch etna etta eugh eval evan even ever evil exam exes exit exon eyed eyre ezra face fact fade fail fain fair fake falk fall fama fame fane fang fant fare farm faro fash fast fate faun faux fawn faze fear feat feck feed feel feet feis fell fels felt fend fern fers fess fest fete feud fiat fico fide fido fief fife fifo fiji file fill film filo fils find fine fink finn fire firm fisc fish fisk fist fitz five fizz flab flag flak flam flan flap flat flaw flax flay flea fled flee flew flex flip flit flix floe flog flop flow flub flue flux foal foam foci fogo foil fold folk fond fone fons font food fool foot fora ford fore fork form fort foul four fowl foxy frae frag fram frap frat frau fray fred free fren fret frey frig friz frog from fuck fuel fuji full fume fund funk fury fuse fuss fuze fuzz gabe gabi gaby gael gaff gaga gage gaia gail gain gait gala gale gali gall galt game gane gang gant gaol gaon gape gara garb gard gare garn garo gary gash gasp gast gata gate gatt gaul gaur gave gawk gaze gazi gear geek geer geet geez gein geld gell gems gena gene gens gent gere germ gers gest geta geum ghat ghee gift gigi gila gild gill gilt gimp ging gird girl giro gish gist give glad glam glee glen glia glib glob glow glue glug glum glut glyn gnat gnaw goad goal goan goat gobi goby goel goer goes goff gogo gold golf goli goma gona gone gong good goof gook goon goop gora gord gore gory gosh goss goth gout gove gown grab grad graf gram grat gray gree greg grew grey grid grim grin grip gris grit grog gros grow grub guan guar gude guff gugu guha gulf gull gulp gump guna gunk gunz gurl guru gush gust gwen gyre gyro haar habe hack hade haft hail hain hair haji hajj hake haku hala hale half hall halo halp hals halt hame hand hang hank hans harb hard hare hark harm harp harr hart harv hase hash hast hate hath hati hatt haul haut have hawk haya haze hazy head heal heap hear heat hebe heck heed heel heep heer heft hehe hein heir held hele hell helm help heme hemp heng herb herd here hero herr hers hewn hexa hick hide hifi high hike hill hilt hind hine hing hint hire hiro hiss hist hive hoar hoax hobo hock hold hole holl holm holt holy home homo hone hong honk hood hoof hook hoon hoop hoot hope hopi hora hore horn hose host hote hour hove howe howl hoya huck hued huey huff huge hugh hugo hula hulk hull hulu huma hume hump hung hunk hunt hurl hurr hurt hush husk huss hymn hype hypo iban ibex ibid ibis ical icbm iced icky icon idea idem ides idle idly idol iffy ilex ilia illy ilya imam iman inca inch inde indy inez inga inks inky into ione iota iowa iran iraq iris irma iron isis isle itch item iter itza ivan izzy jack jade jail jain jake jama jamb jami jane jann jara jarl jati java jazz jean jeep jeer jeff jehu jell jerk jess jest jesu jibe jill jing jinn jinx jiri jive joan jock joel joey john join joke jolt jong joni joon jose josh joss jota jove jowl jozy jpeg juan juba jude judo judy juju juke jule july jump june jung junk juno jura jure juri jury just jute jynx kadi kage kail kain kaka kaki kala kale kali kalo kama kame kami kana kang kant kapa kapp kari karl karn karo kate kath katy kava kayo kazi keck keel keen keep kees keir kell kelp kemp kenn keno kent kept kerb kern kers keto khan khat kick kids kiel kier kike kiki kiku kill kiln kilo kilt kina kind kine king kink kino kiri kirk kish kiss kist kite kith kiva kivu kiwi klan knee knew knit knob knot know knut koba kobi koch koda kohl koko koku kola kolo komi kona kopi kora kore kori kory kota koto kras kris kuan kuba kuda kudu kuei kuku kula kung kurd kurt kwan kyaw kyle kylo lace lack lacy lade lady laid lain lair lake lakh lalo lama lamb lame lamm lamp lana land lane lang laos lapp lard lari lark lars lary lash lass last lata late lath laud lava lave lawn laws laze lazy lead leaf leah leak leal lean leap lear lech leda lede leed leek leer lees leet left lege lehi lehr leif lena lend lene leno lens lent leon less lest leto lett leve levi levy lewd liar lias lice lich lick lida lido lied lief lien lier lieu life lift like lila lile lill lilt lily lima limb lime limo limp lina lind line ling link linn lino lint lion lipa lira lire lisa lise lish lisp liss list lite live liza llyn load loaf loam loan lobe lobo loca loch loci lock loco lode loft loge logo loin lois loke loki lola loll lolo loma lond lone long look lool loom loon loop loos loot lope lora lord lore lori lorn loro lory lose loss lost lota loth lots loud loup lout love lowy loyd luba lube luce luck lucy ludo luff luge luis luke lula lull lulu lump luna lune lung lunn lunt lupe lure lurk lush lusk lust lute luxe lyne lynn lynx lyon lyra lyre lyse maam mace mack made madi mado maga mage magi maha mahi maia maid mail maim main maja make maki mako mala male mali mall malm malo malt mama mamo mana mand mane mang mani mann mano mans manu manx many mara marc mare mari mark marl maro mars mart maru mary masa mase mash mask mass mast mate math mats matt maud maul maya mayo maza maze mdma mead meal mean meat meek meer meet mega mein mela meld mele mell melt memo mend meng ment menu meow mere merk mero mesa mesh meso mess meta mete meth mews mian miao mica mice mich mick mico mids mien mike miki mila mild mile milk mill milo milt mima mime mimi mina mind mine ming mink mino mint minx mira mire miro mise miss mist mite mitt moan moat mock moco mode mohr mojo moke moko mola mold mole moll molt moly momo mona mone mong monk mono mont mood moon moor moot mope mora more morg morn moro mort mose moss most mote moth moto mott move mown moya moyo much muck mudd muff muir mule mulk mull mult mumm mung mura murk murr musa muse mush musk muss must muta mute muth mutt myra myst myth naam nabs nace nach nada naga naik nail naim nain nair nama name namo nana nant napa nape nard nary nash nasi nast nate nath nave navy nazi neal near neat nebo neck need neem neer neet neil nell nema neon nepa neri nero ness nest nett neve news newt next ngai nias nibs nice nick nigh nike nile nill nils nina nine ning nisi nito niue noah noam nobs nock node noel noir nole noll nolo noma nome nona none nook noon noot nope nora nori norm norn nose nosh nosy note nott noun nous nova novo nowt nude nuke null numa numb nuts oaky oath oban obey obit oboe odds odin odor odum ofer ogle ogre ohio oily okay okey okie okra olaf olam olay oleg olga olio olla olof oman omar omen omer omit once onde ones only onto onus onyx ooze opal open opie opus oral orca oreo orgy oryx otis otto ouch ours ouse oust oval oven over ovum owen oxen paar paas paca pace pack paco pact page paid paik pail pain pair pais pala pale pali pall palm palo palp pane pang pani pant papa pape para pare pari park parr part pash pass past pata pate path pato paul pave pawn paye peak peal pear peat peck pecs peed peek peel peen peep peer pele pell pelt pend pens pent peon pere peri perk perm pern pers pert peru pesa peso pest pete peto petr phew phil phon phos phot pica pick pico pict pied pier piet pika pike pile pili pill pima pimp pina pine ping pink pino pint pipa pipe pish piso piss pita pith pits pity plan plat play plea pleb pled plex plod plop plot plow ploy plug plum plus pock poco poem poet pogo poke pole polk poll polo poly pomo pomp pond pone pong pons pont pony poof pooh pool poon poop poor poot pope pore pork port pose posh poss post posy pott pour pout pram prat pray prep prey prim pris prob prod prof prog prop prow prox prue puck puff pugh puja puke puli pull pulp puma pump puna punk puno punt puny pupa pure puri purl purr push puss putt putz pyke pyne pyre pyro quad quan quas quay quid quin quip quis quit quiz quod quot raad rabi race rach rack racy rada rade rafe raff raft raga rage raid rail rain rais raja rake raki raku ralf rama rami ramp rana rand rane rang rani rank rann rant rape rapt rare rasa rash rasp rata rate rath raul rave ravi raya raze razz read real ream reap rear reck rect redd rede redo reed reef reek reel reem rees reet reid rein reis reit rely reme remi rend rent renu reps resp rest rete reve rhea rial rice rich rick ride rife riff rift rile rima rime rind ring rink riot ripa ripe rise risk rist rita rite riva rive road roam roan roar robe rock rodd rode roid role rolf roll rome romp rone rong rood roof rook room roon roop root rope rory rosa rose ross rost rosy rota rote roto rout roux rove roxy rube ruby ruck rudd rude rudy ruff ruin rukh rule rump rune rung runt rupa ruse rush rusk russ rust ruta ruth saad saba sabe sack saco sacs sade sado sadr safe safi saga sage sago saic said sail sain saka sake saki sale salt same samp sand sane sang sank sans sant sapa sara sare sari sark sasa sash sass sate saul save sawn saxe saya scab scad scam scan scar scat scot scud scum seal seam sean sear seat sect seed seek seel seem seen seep seer self sell seme semi send sens sent sept sera serb sere serf seri sero sert sess seta seth sett sewn sext sexy shad shag shah shai sham shan shap shat shaw shay shea shed shee shel shen sher shew shih shik shim shin ship shiv shod shoe shoo shop shor shot shou show shug shul shun shut siam sich sick sida side sidi sift sigh sign sika sike sikh silk sill silo silt sima sime simp sina sind sine sing sink sion sire sisi sita site sith siva size skal skee skew skid skim skin skip skit skye slab slag slam slap slat slav slaw slay sled slee slew slid slim slip slit slob sloe slog slop slot slow slug slum slur slut smee smit smog smug smut snag snap snip snob snog snot snow snub snug soak soap soar sock soco soda sofa sofi soft soho soil sola sold sole soli solo soma some song sons sook soon soot soph sora sore sori sort sory soso soul soup sour sous sown soya spam span spar spat spay spec sped spew spin spit spor spot spry spud spun spur stab stag stal stam stan stap star stay stem sten step stew stim stir stop stor stow stra stub stud stun styx such suck suds suet sufi suit sula sulk sulu sumo sump sung sunk sunt supa supe sura sure surf susi susu suzy swab swag swam swan swap swat sway swig swim swot swum syed sync syne taal tabu tach tack tact taft taha tail tain tait take taku tala talc tale tali talk tall tama tame tamp tana tane tang tank tano tant taos tapa tape taps tapu tara tare tari tarn taro tarp tarr tars tart tash task tass tate taut tawa taxi teak teal team tear teat tech teck teel teem teen teil tele tell tema temp tend teng tent tera teri term tern tess test tete text thad thai than thar that thaw thea thee them then theo thew they thin this thon thor thos thou thro thru thud thug thus tice tick tide tidy tied tien tier tiff tigh tiki tile till tilt time timo tina tine ting tink tino tint tiny tire tiro tite titi toad toba tobe toby tock toda todd toed toff toft tofu toga togs toho toil toit toke toko tola told toll toma tomb tome tone tong tonk tony took tool toon toot tope toph topo tops tora tore torn toro tort toru tory tosh toss tota tote toto toty tour tout town trad tram tran trap tray tree trek tren trew trey trig trim trin trio trip trix trod tron trot trow troy true tsar tsun tuan tuba tube tuck tufa tuff tuft tuke tula tule tull tuna tune tung turd turf turk turn tush tusk tuts tutu twas twat twee twig twin twit tyke tyne type typo tyre tyro ugly ulan ulla ulna unde undo unit unto updo upon ural uran urdu urea urge uric ursa usar used user utah utes utis vail vain vale vali vamp vane vang vara vari vary vasa vase vast vasu veal veda veen veep veer vega veil vein vela vell velo vena vend vent vera verb vern vers vert very vest veto vial vice vick vide vier view vila vile vill vina vine vino viol vira visa vise vita viva vive void vole volt vote wace wack waco wade wadi waft wage waid waif wail wain wait waka wake wald wale wali walk wall walt wand wane wang want ward ware wark warm warn warp wart wary wash wasp wast watt wave wavy wawa waxy ways weak weal wean wear weed week ween weep weet weft weir weld well welt wend went wept were werk wert west weta weve wham whan what whee when wher whet whew whey whig whim whip whir whit whiz whoa whom whoo wich wick wide wife wike wild wile wilk will wilt wily wimp wind wine wing wink wint wipe wird wire wiry wise wish wisp with woke wold wolf woll womb wong wont wood woof wook wool woon word wore work worm worn wort woul wove wrap wray wren writ wuss wynn wyss xian xiii xmas xvii xxii xxiv xxix xxvi yaba yagi yair yale yalu yama yana yang yank yard yare yarn yawl yawn yaya yeah year yell yelp yeni yoga yogi yoke yolk yoni yore york youd your yuan yuck yuen yuga yuki yule yuma yurt zach zain zama zant zany zeal zein zeke zend zero zest zeta zeus zinc zine zing zink zion zips zira zona zone zoom zulu zuni".split(" "));
+  const STARTS = "mess bolt desk gene snap hint lens gain made like gold skin punk sell fuel silk hard mine self chip then bulk bust join diet cold crew real wild each half move time dash knew tiny main base bath turn duty easy soup plan lake near palm team full land data must farm wave hull rage date bird hand ride stem sort seal mass pill road wash lung vote wing flat babe wage gave away beer jury male feel lost park lift dose golf milk safe poem woke dare list tend step mode goal logo fine bell left meet went coal deck folk such five send bear pine suit find lamp ward grab told boat band trip have bond push pull blow slot hope bone mere cape beam thin boom cake vast item soap rate gang wait kick tree gone whom else spam toll earn wine head rush neck sail sick role some loud rich wall tube lord solo pile grew dumb luck file wife bass sole less rear fold mild will pain many last flew help free side play wear pink nine gear said warm just down star talk mill pick doll call grey hate love more week term weak junk mall hair fair want deny copy menu risk shot rain lack pork tape tire wipe walk rock feed mask born mail rose pope pale bowl read fell tone song page wrap pole same horn rule done sake rare best harm when dawn bite loan grid fame host soft wide pose drag beat joke path none work lazy pray core tale both coat care lane make cost calm goat fall mark home film load mile mood weed vary foul reed give slow wise tune seat gift draw fact dump back fort nest peak show whip mice scan pipe west king firm they slip face ease riot tent past city beef boss rise know hold lose your late tell leaf task chin grip save bang keep tank flow skip part dive than busy much card bout bold fled cent heat true book hole corn fill tied fake dirt wish nice lamb fear bush keen game tail name disc nose here soda chef cash coin gulf link hung food been town most ball sold rail wire took year cure hear mate gray fire rent bill rice pass grow teen type seem jail cave hack well lock lean dark cope sing deal tide site shut hill pure span bull sale sure long bomb clip body note cell cast loss pace next cute need seed buck that wood duke fail fate till mean twin debt burn wolf chat ruin worn flip disk deep case laid bend cult this size soil snow bare bank shoe clay pair liar lead butt felt nail glad dish math wake wore jump shop cage were spot thus kind rope them zone salt roll code duck fund heal soul hide tear sent kiss hall shed word bail seen torn came meat vice rank hero kept hire seek sand slim deer holy text hour stop spin ship race dear come line tall live ford warn lady take sink leak pack fork meal yard rude ring peer what trap form mind wind camp slam hurt jack four dual news gate fast tier dust drew swim fish flag stay belt test tour girl life miss raid rest bike east sang".split(" ");
+  const COMMON = new Set("able ache acid acne acre aero afar aged ahem aide aint airy akin alan alas alba alec ally alma also alto alum amen amid amir ammo anal anew anna anon ante anti anus apex aqua arch area aria arid arms army arse atom atop aunt aura auto avid away axes axis axle baba babe baby bach back bail bain bait bake bald bale bali ball balm band bane bang bank barb bard bare bark barn base bash bass bath bats bead beak beam bean bear beat beau beck beef been beer bees bell belt bend bent berg best beta beth bias bike bile bill bind bing bios bird bite blah bled bloc blow blue blur boar boat body boil bold bolt bomb bond bone bong bony boob book boom boon boot bore borg born bose boss both bout bowl brad brag bran brat bray bred bret brew brig brit brow buck buff bulb bulk bull bump bunk burn burr burt bury bush bust busy butt buzz cage cain cake calf call calm came camp cane cant cape card care carl carr cart case cash cass cast cave cell cent chad chai chap char chat chef chew chic chin chip chop chow chun cite city clad clam clan clap claw clay clip club clue coal coat coca cock coco code coil coin coke cola cold cole coli colt coma comb come cone conn cook cool coop cope copy cora cord core cork corn corp cost cosy coup cove cozy crab crap crew crib crop crow cube cuff cult curb cure curl cute daft dale dame damn damp dang dank dare dark darn dart dash data date dawn days dead deaf deal dean dear debt deck deed deem deep deer defy dell demi dent deny desk dial dice dick diet digs dime dine ding dire dirk dirt disc dish disk diva dive dock dodd does dogs dole doll dome done dong dont doom door dope dorm dose dove down drag draw drew drip drop drug drum dual duck duct dude duel duet duff duke dull duly dumb dump dune dung dunk dusk dust duty dyer dyke each earl earn ease east easy eats echo eddy edge edgy edit elle else emit emma envy epic eric even ever evil exam exit eyed face fact fade fail fair fake fall fame fang fare farm fast fate fear feat feed feel fell felt fend fern fest feud fiat fide fife file fill film find fine fire firm fish fist five flag flap flat flaw flea fled flee flew flex flip flop flow flux foam foil fold folk fond font food fool foot ford fore fork form fort foul four frat fray free fret frog from fuel fuji full fund funk fury fuse fuss gage gain gala gale gall game gang gasp gate gave gaze gear geek gene germ gift gill girl give glad glam glee glen glow glue goal goat goes gold golf gone gong good gore gosh gown grab grad gram gray grew grey grid grim grin grip grit grow gulf guru hack hail hair hale half hall halo halt hand hank hard hare harm harp hart hash hate hath haul have hawk haze head heal heap hear heat heck heed heel heir hell helm help hemp herb herd here hero hers hide high hike hill hind hint hire hive hoax hold hole holt holy home homo hong hood hook hoop hope horn hose host hour howe huge hulk hull hulu hump hung hunt hurt hush hymn iced icon idea idle idol imam inch indy into iris iron isle itch item jack jade jail jake jane jazz jean jeep jeff jerk jess jock joey join joke josh judo jump june junk jury just kale kali kang keen keep kemp kent kept khan kick kill kind king kink kirk kiss kite kiwi knee knew knit knob knot know kung kyle lace lack lacy lady laid lair lake lama lamb lame lamp land lane lash last late lava lawn lazy lead leaf leak lean leap lear left lend lens lent less lest levy liar lice lick lied lien lieu life lift like lily limb lime limo limp line ling link lion list lite live load loaf loan lobe loch lock loco loft logo lone long look loom loop loot lord lore lori lose loss lost lots loud love luck lucy luke lulu lump luna lung lure lush lust mace mack made maid mail main make male mali mall malt mana mane mani many marc mare mark mart mary mash mask mass mast mate math maya maze mead meal mean meat meek meet mein melt memo mend menu mere mesa mesh mess meta mice mick mike mild mile milk mill milo mina mind mine ming mint miss mist mitt moan mock mode mojo mold mole mona monk mono mood moon moor moot more moss most moth move much muir mule muse musk must mute myth nail name nana napa nash navy neal near neat neck need neon ness nest news newt next nice nick nigh nine node noel noir none noon nope norm nose note noun nova nude nuke null numb oath obey odds odor oily once only onto opal open oral orgy otto ouch ours oval oven over pace pack pact page pain pair pale palm papa para park part pass past path pave pawn peak pear peat peck peek peel peep peer pest pete pick pier pike pile pill pimp pine ping pink pint pipe piss pity plan play plea plot plow ploy plug plum plus poem poet poke pole polk poll polo poly pond pong pony pooh pool poop poor pope pore pork port pose posh post pour pray prep prey prob prod prof prop puck puff puke pull pulp puma pump punk punt pure push quad quay quid quit quiz race rack raft rage raid rail rain raja rake ramp rand rang rank rant rape rare rash rate rave read real reap rear reed reef reel rein rely rent reps rest rice rich rick ride riff rift ring rink riot ripe rise risk rita rite road roam roar robe rock rode role roll roof room root rope rory rose ross rosy ruby rudd rude ruin rule rung rush rust ruth sack safe saga sage said sail sake sale salt same sand sane sang sank sans sash save scam scan scar scot scum seal seam seat sect seed seek seem seen self sell semi send sent sept seth sexy shah sham shan shaw shea shed shin ship shoe shop shot show shun shut sick side sigh sign silk sing sink sire site size skid skin skip slab slam slap slay sled slew slid slim slip slit slot slow slug slum slut smug snag snap snow soak soap soar sock soda sofa soft soho soil sold sole solo soma some song sons soon sore sort soul soup sour spam span spat spec sped spin spit spot spun spur stab stag star stay stem step stew stir stop stud stun such suck suit sung sunk sure surf swam swan swap swat sway swim sync tack taft tail take tale talk tall tame tang tank tape taps tara tart task tate taxi teal team tear tech teen tell temp tend tent term test text than that thee them then they thin this thou thug thus tick tide tidy tied tier tile till tilt time ting tint tiny tire toad toby tofu told toll tomb tome tone tong tony took tool tops tore torn toro tory toss tote tour town tram trap tray tree trek trey trim trio trip trot troy true tube tuck tuna tune turf turk turn twat twin type typo tyre ugly undo unit unto upon urge used user vain vale vary vase vast veil vein vent vera verb very vest veto vice view vile vine visa vita viva void volt vote wade wage wait wake walk wall walt wand wang want ward ware warm warn warp wary wash wasp watt wave wavy ways weak wear weed week weep weir weld well went wept were west what when whew whim whip whoa whom wick wide wife wild will wilt wind wine wing wink wipe wire wise wish with woke wolf womb wong wont wood wool word wore work worm worn wrap writ yale yang yard yarn yeah year yell yelp yoga york your yuan zeal zero zinc zone zoom".split(" "));
+  const GOAL = "poop";
+  const TZ = "Asia/Jerusalem";
+  const EPOCH = "2026-11-03";
+
+  // ---------- date + puzzle ----------
+  function dayKey(d) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d || new Date());
+  }
+  function dayIndex(key) {
+    return Math.round((Date.parse(key + "T00:00:00Z") - Date.parse(EPOCH + "T00:00:00Z")) / 86400000);
+  }
+  const TODAY = dayKey();
+  const IDX = dayIndex(TODAY);
+  const PNUM = IDX + 1;
+  const START = STARTS[((IDX % STARTS.length) + STARTS.length) % STARTS.length];
+
+  // ---------- word graph ----------
+  const AZ = "abcdefghijklmnopqrstuvwxyz";
+  function neighbors(w, set) {
+    const out = [];
+    for (let i = 0; i < 4; i++) for (const c of AZ) {
+      if (c === w[i]) continue;
+      const x = w.slice(0, i) + c + w.slice(i + 1);
+      if (set.has(x)) out.push(x);
+    }
+    return out;
+  }
+  function shortest(from, to) {
+    const prev = new Map([[from, null]]); const q = [from];
+    for (let h = 0; h < q.length; h++) {
+      const w = q[h];
+      if (w === to) break;
+      for (const x of neighbors(w, COMMON)) if (!prev.has(x)) { prev.set(x, w); q.push(x); }
+    }
+    if (!prev.has(to)) return null;
+    const path = []; for (let w = to; w; w = prev.get(w)) path.unshift(w);
+    return path;
+  }
+  const OPT = shortest(START, GOAL);
+  const PAR = OPT ? OPT.length - 1 : 0;
+  function diffCount(a, b) { let n = 0; for (let i = 0; i < 4; i++) if (a[i] !== b[i]) n++; return n; }
+
+  // ---------- local state ----------
+  const LS = "poople:" + TODAY;
+  let chain = [START], typed = "", won = false, posted = false;
+  try {
+    const s = JSON.parse(localStorage.getItem(LS) || "null");
+    if (s && Array.isArray(s.chain) && s.chain[0] === START) { chain = s.chain; won = !!s.won; posted = !!s.posted; }
+  } catch (e) {}
+  function save() { try { localStorage.setItem(LS, JSON.stringify({ chain, won, posted })); } catch (e) {} }
+  let savedNick = ""; try { savedNick = localStorage.getItem("poople:nick") || ""; } catch (e) {}
+
+  // ---------- render ----------
+  const $ = (id) => document.getElementById(id);
+  $("pnum").textContent = "#" + PNUM;
+  $("pdate").textContent = new Date(TODAY + "T12:00:00Z").toLocaleDateString(undefined, { month: "short", day: "numeric" });
+
+  function tileRow(word, prevWord, cls, label) {
+    const row = document.createElement("div");
+    row.className = "row " + (cls || "");
+    const n = document.createElement("div"); n.className = "n"; n.textContent = label; row.appendChild(n);
+    for (let i = 0; i < 4; i++) {
+      const t = document.createElement("div"); t.className = "tile";
+      const ch = word[i] || "";
+      t.textContent = ch;
+      if (cls && cls.includes("goal")) { /* plain */ }
+      else if (cls && cls.includes("current")) { if (ch) t.classList.add("typing"); }
+      else if (prevWord && ch && ch !== prevWord[i]) t.classList.add("changed");
+      else if (ch && ch === GOAL[i]) t.classList.add("hit");
+      row.appendChild(t);
+    }
+    return row;
+  }
+  function render() {
+    const L = $("ladder"); L.textContent = "";
+    chain.forEach((w, i) => {
+      const last = i === chain.length - 1;
+      L.appendChild(tileRow(w, i ? chain[i - 1] : null, (i === 0 ? "start" : "") + (won && last ? " win" : ""), i === 0 ? "start" : String(i)));
+    });
+    if (!won) {
+      L.appendChild(tileRow(typed, null, "current", String(chain.length)));
+      const d = document.createElement("div"); d.className = "dots"; d.textContent = "· · ·"; L.appendChild(d);
+      L.appendChild(tileRow(GOAL, null, "goal", "goal"));
+    }
+    $("undo").disabled = won || chain.length < 2;
+    $("reset").disabled = won || chain.length < 2;
+    $("kb").hidden = won;
+    document.querySelector(".tools").hidden = won;
+    renderResult();
+  }
+  let statusTimer;
+  function say(msg, err) {
+    const s = $("status"); s.textContent = msg; s.className = "status" + (err ? " err" : "");
+    clearTimeout(statusTimer); if (msg) statusTimer = setTimeout(() => { s.textContent = ""; }, 2600);
+    if (err) { const r = document.querySelector(".row.current"); if (r) { r.classList.remove("shake"); void r.offsetWidth; r.classList.add("shake"); } }
+  }
+
+  // ---------- input ----------
+  function press(k) {
+    if (won) return;
+    if (k === "enter") return submitWord();
+    if (k === "back") { typed = typed.slice(0, -1); return render(); }
+    if (/^[a-z]$/.test(k) && typed.length < 4) { typed += k; render(); }
+  }
+  function submitWord() {
+    const prev = chain[chain.length - 1];
+    if (typed.length < 4) return say("Type 4 letters", true);
+    if (typed === prev) return say("That's the same word", true);
+    if (diffCount(prev, typed) !== 1) return say("Change exactly one letter from " + prev.toUpperCase(), true);
+    if (!WORDS.has(typed)) return say(typed.toUpperCase() + " isn't in the word list", true);
+    if (chain.includes(typed)) return say("You already used " + typed.toUpperCase(), true);
+    chain.push(typed); typed = "";
+    if (chain[chain.length - 1] === GOAL) { won = true; say(""); onWin(); }
+    else say("");
+    save(); render();
+  }
+  $("undo").onclick = () => { if (chain.length > 1 && !won) { chain.pop(); typed = ""; save(); render(); } };
+  $("reset").onclick = () => { if (!won) { chain = [START]; typed = ""; save(); render(); } };
+  document.addEventListener("keydown", (e) => {
+    if (e.target && e.target.tagName === "INPUT") return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k === "enter") { e.preventDefault(); press("enter"); }
+    else if (k === "backspace") { e.preventDefault(); press("back"); }
+    else if (/^[a-z]$/.test(k)) press(k);
+  });
+  (function buildKb() {
+    const rows = ["qwertyuiop", "asdfghjkl", "+zxcvbnm-"];
+    const kb = $("kb");
+    rows.forEach((r) => {
+      const div = document.createElement("div"); div.className = "kr";
+      for (const c of r) {
+        const b = document.createElement("button"); b.type = "button";
+        if (c === "+") { b.textContent = "Enter"; b.className = "wide"; b.onclick = () => press("enter"); }
+        else if (c === "-") { b.textContent = "⌫"; b.className = "wide"; b.setAttribute("aria-label", "Delete"); b.onclick = () => press("back"); }
+        else { b.textContent = c; if ("po".includes(c)) b.classList.add("goal-letter"); b.onclick = () => press(c); }
+        div.appendChild(b);
+      }
+      kb.appendChild(div);
+    });
+  })();
+
+  // ---------- result ----------
+  function steps() { return chain.length - 1; }
+  function parLabel(s, p) { const d = s - p; return d === 0 ? "Par" : d > 0 ? "+" + d + " over par" : d + " under par"; }
+  function shareText() {
+    const s = steps();
+    const rows = chain.slice(1).map((w) => (w === GOAL ? "💩" : "🟫")).join("");
+    return "POOPLE #" + PNUM + "\n" + START.toUpperCase() + " → POOP in " + s + " (par " + PAR + ")\n" + rows;
+  }
+  function renderResult() {
+    $("result").hidden = !won;
+    if (!won) return;
+    $("rsteps").textContent = steps();
+    $("rpar").textContent = parLabel(steps(), PAR);
+    $("roptimal").innerHTML = "";
+    const lbl = document.createTextNode(steps() === PAR ? "You found a shortest ladder. One of them: " : "A shortest ladder: ");
+    const code = document.createElement("code"); code.textContent = OPT.join(" → ");
+    $("roptimal").append(lbl, code);
+  }
+  $("share").onclick = () => {
+    const t = shareText();
+    const done = () => { $("shareout").textContent = "Copied to clipboard."; };
+    const fallback = () => { $("shareout").textContent = t; };
+    try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
+  };
+
+  // ---------- scoreboard (db) ----------
+  let db = null, user = null, myId = null, players = [], tab = "today", canWrite = null, loaded = false;
+  function onWin() { updatePostUI(); }
+
+  function myRecordToday() {
+    const me = players.find((p) => p.id === myId);
+    return me && me.days && me.days[TODAY];
+  }
+  function updatePostUI() {
+    const box = $("namebox"), note = $("postnote");
+    if (!won) return;
+    if (!db || !myId) { box.hidden = true; note.textContent = "Sign in to claude.ai to post your score to the shared scoreboard."; return; }
+    if (canWrite === false) { box.hidden = true; note.textContent = "You can play, but posting scores needs the owner to give you Contributor access."; return; }
+    const rec = myRecordToday();
+    if (rec) { box.hidden = true; note.textContent = "Your score for today is on the board: " + rec.steps + " steps." + (rec.steps !== steps() ? " Only your first finish counts." : ""); return; }
+    box.hidden = false; note.textContent = "";
+    if (!$("nick").value) $("nick").value = savedNick;
+  }
+  $("submit").onclick = async () => {
+    const nick = $("nick").value.trim().slice(0, 20);
+    if (!nick) { $("postnote").textContent = "Add a name for the scoreboard."; $("nick").focus(); return; }
+    if (myRecordToday()) return updatePostUI();
+    try { localStorage.setItem("poople:nick", nick); } catch (e) {}
+    savedNick = nick;
+    $("submit").disabled = true; $("postnote").textContent = "Posting…";
+    const rec = { steps: steps(), par: PAR, start: START, path: chain.slice(), at: Date.now() };
+    const ref = db.doc("players/" + myId);
+    try {
+      const snap = await ref.get();
+      if (snap.exists) await ref.update({ nick, days: { [TODAY]: rec } });
+      else await ref.set({ nick, days: { [TODAY]: rec } });
+      posted = true; save();
+      $("postnote").textContent = "Posted.";
+    } catch (e) {
+      $("postnote").textContent = "Couldn't post your score (" + (e && e.code || "error") + "). You may need Contributor access to this page.";
+    } finally { $("submit").disabled = false; }
+  };
+
+  function cell(tr, text, cls) { const td = document.createElement("td"); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); return td; }
+  function header(cols) {
+    const thead = document.createElement("thead"); const tr = document.createElement("tr");
+    cols.forEach(([t, c]) => { const th = document.createElement("th"); th.textContent = t; if (c) th.className = c; tr.appendChild(th); });
+    thead.appendChild(tr); return thead;
+  }
+  function renderBoard() {
+    const B = $("board"); B.textContent = "";
+    $("tab-today").setAttribute("aria-selected", tab === "today");
+    $("tab-all").setAttribute("aria-selected", tab === "all");
+    if (!db) { B.innerHTML = '<p class="empty">The shared scoreboard shows up when you open POOPLE signed in to claude.ai.</p>'; return; }
+    if (!loaded) { B.innerHTML = '<p class="empty">Loading scores…</p>'; return; }
+    const table = document.createElement("table"); const tb = document.createElement("tbody");
+    if (tab === "today") {
+      const rows = players.filter((p) => p.days && p.days[TODAY]).map((p) => ({ p, r: p.days[TODAY] }))
+        .sort((a, b) => a.r.steps - b.r.steps || a.r.at - b.r.at);
+      if (!rows.length) { B.innerHTML = '<p class="empty">No one has made POOP today. Finish the ladder to take first place.</p>'; return; }
+      table.appendChild(header([["#"], ["Player"], ["Steps", "num"], ["vs par", "num"], ["Finished", "num"]]));
+      let rank = 0, lastSteps = null;
+      rows.forEach(({ p, r }, i) => {
+        if (r.steps !== lastSteps) { rank = i + 1; lastSteps = r.steps; }
+        const tr = document.createElement("tr"); if (p.id === myId) tr.className = "me";
+        cell(tr, rank, "rank"); cell(tr, p.nick || "Player", "who"); cell(tr, r.steps, "num");
+        const d = r.steps - (r.par || PAR); cell(tr, d === 0 ? "par" : (d > 0 ? "+" : "") + d, "num");
+        cell(tr, new Date(r.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), "num");
+        tb.appendChild(tr);
+      });
+    } else {
+      const rows = players.map((p) => {
+        const ds = Object.values(p.days || {});
+        const over = ds.reduce((s, r) => s + (r.steps - r.par), 0);
+        return { p, n: ds.length, pars: ds.filter((r) => r.steps === r.par).length, avg: ds.length ? over / ds.length : 0 };
+      }).filter((x) => x.n).sort((a, b) => a.avg - b.avg || b.n - a.n);
+      if (!rows.length) { B.innerHTML = '<p class="empty">No scores yet.</p>'; return; }
+      table.appendChild(header([["#"], ["Player"], ["Days", "num"], ["Pars", "num"], ["Avg vs par", "num"]]));
+      rows.forEach((x, i) => {
+        const tr = document.createElement("tr"); if (x.p.id === myId) tr.className = "me";
+        cell(tr, i + 1, "rank"); cell(tr, x.p.nick || "Player", "who"); cell(tr, x.n, "num"); cell(tr, x.pars, "num");
+        cell(tr, x.avg === 0 ? "par" : (x.avg > 0 ? "+" : "") + x.avg.toFixed(1), "num");
+        tb.appendChild(tr);
+      });
+    }
+    table.appendChild(tb); B.appendChild(table);
+  }
+  $("tab-today").onclick = () => { tab = "today"; renderBoard(); };
+  $("tab-all").onclick = () => { tab = "all"; renderBoard(); };
+
+  async function connect() {
+    if (!window.claude || !window.claude.use) { renderBoard(); updatePostUI(); return; }
+    try {
+      [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    } catch (e) { db = null; }
+    if (user) {
+      try { myId = await user.id(); } catch (e) {}
+      try { canWrite = await user.can("data.write"); } catch (e) {}
+      if (!savedNick) { try { const me = await user.me(); if (me && me.name) savedNick = me.name.split(" ")[0]; } catch (e) {} }
+    }
+    if (!db) { renderBoard(); updatePostUI(); return; }
+    renderBoard();
+    const timer = setTimeout(() => { if (!loaded) $("board").innerHTML = '<p class="empty">Scores can\'t be reached right now. Your game still works.</p>'; }, 10000);
+    db.collection("players").onSnapshot((snap) => {
+      players = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); }
+      else loaded = true;
+      renderBoard(); updatePostUI();
+    }, (err) => { clearTimeout(timer); $("board").innerHTML = '<p class="empty">The scoreboard stopped updating (' + (err && err.code || "error") + '). Reopen the page to reconnect.</p>'; });
+  }
+
+  // ---------- countdown ----------
+  function tick() {
+    const now = new Date();
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(now);
+    const g = (t) => +parts.find((p) => p.type === t).value;
+    let left = 86400 - (g("hour") * 3600 + g("minute") * 60 + g("second"));
+    const hh = String(Math.floor(left / 3600)).padStart(2, "0"), mm = String(Math.floor(left % 3600 / 60)).padStart(2, "0"), ss = String(left % 60).padStart(2, "0");
+    $("countdown").textContent = hh + ":" + mm + ":" + ss;
+    if (dayKey(now) !== TODAY) $("countdown").textContent = "now · reload";
+  }
+  tick(); setInterval(tick, 1000);
+
+  render();
+  connect();
+})();
+</script>
+
+</body>
+</html>
