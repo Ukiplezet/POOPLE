@@ -76,5 +76,6 @@ Pick one option.
 
 - **Remove a score:** in **Table Editor → scores**, delete the row.
 - **Reset the scoreboard:** run `truncate public.scores;` in the SQL editor.
+- **Skip to a different daily word:** raise `WORD_OFFSET` in `index.html` and `v_offset` in `supabase/schema.sql` by the same amount, push, and re-run `schema.sql` in the SQL editor. Each +1 moves every day one word further down the list.
 - **Change the word lists:** edit the lists in `index.html`, run `python3 tools/export_seed.py`, then run the new `supabase/seed.sql` in the SQL editor. Keep the start date (`2026-11-03`) the same in `index.html` and `schema.sql`, because both use it to pick the day's word.
 - **Abuse limits:** Supabase limits anonymous sign-ins per IP address by default (**Authentication → Rate Limits**). If bots become a problem, turn on CAPTCHA under **Authentication → Attack Protection**.

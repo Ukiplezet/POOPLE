@@ -213,6 +213,8 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
   const GOAL = "poop";
   const TZ = "Asia/Jerusalem";
   const EPOCH = "2026-11-03";
+  // Shifts which start word each day gets. Must match v_offset in supabase/schema.sql.
+  const WORD_OFFSET = 1;
 
   // ---------- date + puzzle ----------
   function dayKey(d) {
@@ -224,7 +226,7 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
   const TODAY = dayKey();
   const IDX = dayIndex(TODAY);
   const PNUM = IDX + 1;
-  const START = STARTS[((IDX % STARTS.length) + STARTS.length) % STARTS.length];
+  const START = STARTS[(((IDX + WORD_OFFSET) % STARTS.length) + STARTS.length) % STARTS.length];
 
   // ---------- word graph ----------
   const AZ = "abcdefghijklmnopqrstuvwxyz";

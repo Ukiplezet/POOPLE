@@ -62,6 +62,8 @@ set search_path = public
 as $$
 declare
   v_uid   uuid := auth.uid();
+  -- Shifts which start word each day gets. Must match WORD_OFFSET in index.html.
+  v_offset int := 1;
   v_today date := (now() at time zone 'Asia/Jerusalem')::date;
   v_count int;
   v_idx   int;
@@ -85,7 +87,7 @@ begin
   end if;
 
   select count(*) into v_count from start_words;
-  v_idx := (((p_day - date '2026-11-03') % v_count) + v_count) % v_count;
+  v_idx := (((p_day - date '2026-11-03' + v_offset) % v_count) + v_count) % v_count;
   select word, par into v_start, v_par from start_words where idx = v_idx;
 
   if v_len < 2 or p_path[1] <> v_start or p_path[v_len] <> 'poop' then
