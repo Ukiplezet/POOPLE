@@ -141,7 +141,11 @@ tr.me td:first-child { border-radius: 8px 0 0 8px; } tr.me td:last-child { borde
 .who { min-width: 0; overflow-wrap: anywhere; }
 .empty, .note { color: var(--muted); font-size: .9rem; margin: 6px 0; }
 .wrap { overflow-x: auto; }
-footer { text-align: center; font-size: .78rem; color: var(--muted); }
+footer { text-align: center; font-size: .78rem; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+footer p { margin: 0; }
+.sig { font-family: var(--font-display); font-size: 1rem; letter-spacing: .03em; color: var(--ink); }
+.sig a { color: var(--brown); text-decoration: none; border-bottom: 2px solid currentColor; }
+.sig a:hover { opacity: .8; }
 
 @media (max-width: 380px) {
   .row { grid-template-columns: 1.6rem repeat(4, 2.7rem); }
@@ -200,7 +204,10 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
     <div class="wrap" id="board"><p class="empty">Loading scores…</p></div>
   </section>
 
-  <footer>New word every day at midnight (Israel time). One scored run per player per day.</footer>
+  <footer>
+    <p>New word every day at midnight (Israel time). One scored run per player per day.</p>
+    <p class="sig">Made by <a href="https://github.com/Ukiplezet" target="_blank" rel="noopener">Ukiplezet</a></p>
+  </footer>
 </main>
 
 <script src="config.js"></script>
