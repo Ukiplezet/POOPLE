@@ -199,6 +199,7 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
   <footer>New word every day at midnight (Israel time). One scored run per player per day.</footer>
 </main>
 
+<script src="config.js"></script>
 <script>
 (function () {
   "use strict";
@@ -372,41 +373,46 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
     try { navigator.clipboard.writeText(t).then(done, fallback); } catch (e) { fallback(); }
   };
 
-  // ---------- scoreboard (db) ----------
-  let db = null, user = null, myId = null, players = [], tab = "today", canWrite = null, loaded = false;
-  function onWin() { updatePostUI(); }
+  // ---------- scoreboard ----------
+  // Two backends share one interface: Supabase when config.js supplies keys,
+  // otherwise the claude.ai artifact store. Each provides:
+  //   id, canPost, why, watch(onData, onError), post(nick, path)
+  // onData receives { today: [{id,nick,steps,par,at}], all: [{id,nick,n,pars,avg}] }.
+  let backend = null, tab = "today", myId = null, statusMsg = "Loading scores…";
+  let board = { today: [], all: [], loaded: false };
 
-  function myRecordToday() {
-    const me = players.find((p) => p.id === myId);
-    return me && me.days && me.days[TODAY];
-  }
+  function onWin() { updatePostUI(); }
+  function myToday() { return board.today.find((r) => r.id === myId); }
+
   function updatePostUI() {
     const box = $("namebox"), note = $("postnote");
     if (!won) return;
-    if (!db || !myId) { box.hidden = true; note.textContent = "Sign in to claude.ai to post your score to the shared scoreboard."; return; }
-    if (canWrite === false) { box.hidden = true; note.textContent = "You can play, but posting scores needs the owner to give you Contributor access."; return; }
-    const rec = myRecordToday();
-    if (rec) { box.hidden = true; note.textContent = "Your score for today is on the board: " + rec.steps + " steps." + (rec.steps !== steps() ? " Only your first finish counts." : ""); return; }
-    box.hidden = false; note.textContent = "";
+    if (!backend) { box.hidden = true; note.textContent = "The scoreboard isn't connected, so this score stays on your device."; return; }
+    if (!backend.canPost) { box.hidden = true; note.textContent = backend.why; return; }
+    if (!board.loaded) { box.hidden = true; note.textContent = "Loading the scoreboard…"; return; }
+    const rec = myToday();
+    if (rec) {
+      box.hidden = true;
+      note.textContent = "Your score for today is on the board: " + rec.steps + " steps." + (rec.steps !== steps() ? " Only your first finish counts." : "");
+      return;
+    }
+    box.hidden = false;
     if (!$("nick").value) $("nick").value = savedNick;
   }
+
   $("submit").onclick = async () => {
     const nick = $("nick").value.trim().slice(0, 20);
     if (!nick) { $("postnote").textContent = "Add a name for the scoreboard."; $("nick").focus(); return; }
-    if (myRecordToday()) return updatePostUI();
+    if (myToday()) return updatePostUI();
     try { localStorage.setItem("poople:nick", nick); } catch (e) {}
     savedNick = nick;
     $("submit").disabled = true; $("postnote").textContent = "Posting…";
-    const rec = { steps: steps(), par: PAR, start: START, path: chain.slice(), at: Date.now() };
-    const ref = db.doc("players/" + myId);
     try {
-      const snap = await ref.get();
-      if (snap.exists) await ref.update({ nick, days: { [TODAY]: rec } });
-      else await ref.set({ nick, days: { [TODAY]: rec } });
+      await backend.post(nick, chain.slice());
       posted = true; save();
       $("postnote").textContent = "Posted.";
     } catch (e) {
-      $("postnote").textContent = "Couldn't post your score (" + (e && e.code || "error") + "). You may need Contributor access to this page.";
+      $("postnote").textContent = "Couldn't post your score: " + ((e && e.message) || "unknown error");
     } finally { $("submit").disabled = false; }
   };
 
@@ -416,39 +422,36 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
     cols.forEach(([t, c]) => { const th = document.createElement("th"); th.textContent = t; if (c) th.className = c; tr.appendChild(th); });
     thead.appendChild(tr); return thead;
   }
+  function emptyNote(text) { const p = document.createElement("p"); p.className = "empty"; p.textContent = text; return p; }
+  function fmtOver(d) { return d === 0 ? "par" : (d > 0 ? "+" : "") + (Number.isInteger(d) ? d : d.toFixed(1)); }
+
   function renderBoard() {
     const B = $("board"); B.textContent = "";
     $("tab-today").setAttribute("aria-selected", tab === "today");
     $("tab-all").setAttribute("aria-selected", tab === "all");
-    if (!db) { B.innerHTML = '<p class="empty">The shared scoreboard shows up when you open POOPLE signed in to claude.ai.</p>'; return; }
-    if (!loaded) { B.innerHTML = '<p class="empty">Loading scores…</p>'; return; }
+    if (!board.loaded) { B.appendChild(emptyNote(statusMsg)); return; }
     const table = document.createElement("table"); const tb = document.createElement("tbody");
     if (tab === "today") {
-      const rows = players.filter((p) => p.days && p.days[TODAY]).map((p) => ({ p, r: p.days[TODAY] }))
-        .sort((a, b) => a.r.steps - b.r.steps || a.r.at - b.r.at);
-      if (!rows.length) { B.innerHTML = '<p class="empty">No one has made POOP today. Finish the ladder to take first place.</p>'; return; }
+      const rows = board.today.slice().sort((a, b) => a.steps - b.steps || a.at - b.at);
+      if (!rows.length) { B.appendChild(emptyNote("No one has made POOP today. Finish the ladder to take first place.")); return; }
       table.appendChild(header([["#"], ["Player"], ["Steps", "num"], ["vs par", "num"], ["Finished", "num"]]));
-      let rank = 0, lastSteps = null;
-      rows.forEach(({ p, r }, i) => {
-        if (r.steps !== lastSteps) { rank = i + 1; lastSteps = r.steps; }
-        const tr = document.createElement("tr"); if (p.id === myId) tr.className = "me";
-        cell(tr, rank, "rank"); cell(tr, p.nick || "Player", "who"); cell(tr, r.steps, "num");
-        const d = r.steps - (r.par || PAR); cell(tr, d === 0 ? "par" : (d > 0 ? "+" : "") + d, "num");
+      let rank = 0, last = null;
+      rows.forEach((r, i) => {
+        if (r.steps !== last) { rank = i + 1; last = r.steps; }
+        const tr = document.createElement("tr"); if (r.id === myId) tr.className = "me";
+        cell(tr, rank, "rank"); cell(tr, r.nick || "Player", "who"); cell(tr, r.steps, "num");
+        cell(tr, fmtOver(r.steps - r.par), "num");
         cell(tr, new Date(r.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), "num");
         tb.appendChild(tr);
       });
     } else {
-      const rows = players.map((p) => {
-        const ds = Object.values(p.days || {});
-        const over = ds.reduce((s, r) => s + (r.steps - r.par), 0);
-        return { p, n: ds.length, pars: ds.filter((r) => r.steps === r.par).length, avg: ds.length ? over / ds.length : 0 };
-      }).filter((x) => x.n).sort((a, b) => a.avg - b.avg || b.n - a.n);
-      if (!rows.length) { B.innerHTML = '<p class="empty">No scores yet.</p>'; return; }
+      const rows = board.all.filter((x) => x.n).sort((a, b) => a.avg - b.avg || b.n - a.n);
+      if (!rows.length) { B.appendChild(emptyNote("No scores yet.")); return; }
       table.appendChild(header([["#"], ["Player"], ["Days", "num"], ["Pars", "num"], ["Avg vs par", "num"]]));
       rows.forEach((x, i) => {
-        const tr = document.createElement("tr"); if (x.p.id === myId) tr.className = "me";
-        cell(tr, i + 1, "rank"); cell(tr, x.p.nick || "Player", "who"); cell(tr, x.n, "num"); cell(tr, x.pars, "num");
-        cell(tr, x.avg === 0 ? "par" : (x.avg > 0 ? "+" : "") + x.avg.toFixed(1), "num");
+        const tr = document.createElement("tr"); if (x.id === myId) tr.className = "me";
+        cell(tr, i + 1, "rank"); cell(tr, x.nick || "Player", "who"); cell(tr, x.n, "num"); cell(tr, x.pars, "num");
+        cell(tr, fmtOver(x.avg), "num");
         tb.appendChild(tr);
       });
     }
@@ -457,25 +460,115 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
   $("tab-today").onclick = () => { tab = "today"; renderBoard(); };
   $("tab-all").onclick = () => { tab = "all"; renderBoard(); };
 
-  async function connect() {
-    if (!window.claude || !window.claude.use) { renderBoard(); updatePostUI(); return; }
-    try {
-      [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
-    } catch (e) { db = null; }
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement("script"); s.src = src; s.onload = resolve;
+      s.onerror = () => reject(new Error("couldn't load " + src)); document.head.appendChild(s);
+    });
+  }
+
+  // --- Supabase backend (GitHub Pages, Vercel, any static host) ---
+  async function supabaseBackend(cfg) {
+    if (!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
+    const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    let { data: { session } } = await sb.auth.getSession();
+    if (!session) {
+      const { data, error } = await sb.auth.signInAnonymously();
+      if (error) throw error;
+      session = data.session;
+    }
+    async function load() {
+      const [t, a] = await Promise.all([
+        sb.from("scores").select("user_id,nick,steps,par,created_at").eq("day", TODAY).order("steps").order("created_at").limit(200),
+        sb.from("leaderboard_all").select("user_id,nick,days,pars,avg_over_par").order("avg_over_par").limit(200),
+      ]);
+      if (t.error) throw t.error;
+      if (a.error) throw a.error;
+      return {
+        today: t.data.map((r) => ({ id: r.user_id, nick: r.nick, steps: r.steps, par: r.par, at: Date.parse(r.created_at) })),
+        all: a.data.map((r) => ({ id: r.user_id, nick: r.nick, n: r.days, pars: r.pars, avg: Number(r.avg_over_par) })),
+      };
+    }
+    let push = null;
+    async function refresh() { try { push && push.onData(await load()); } catch (e) { push && push.onError(e); } }
+    return {
+      id: session.user.id, canPost: true, why: "",
+      watch(onData, onError) {
+        push = { onData, onError }; refresh();
+        setInterval(() => { if (!document.hidden) refresh(); }, 30000);
+        document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+      },
+      async post(nick, path) {
+        const { error } = await sb.rpc("submit_score", { p_nick: nick, p_day: TODAY, p_path: path });
+        if (error) throw new Error(error.message);
+        await refresh();
+      },
+    };
+  }
+
+  // --- claude.ai artifact backend ---
+  async function claudeBackend() {
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db) return null;
+    let id = null, can = null;
     if (user) {
-      try { myId = await user.id(); } catch (e) {}
-      try { canWrite = await user.can("data.write"); } catch (e) {}
+      try { id = await user.id(); } catch (e) {}
+      try { can = await user.can("data.write"); } catch (e) {}
       if (!savedNick) { try { const me = await user.me(); if (me && me.name) savedNick = me.name.split(" ")[0]; } catch (e) {} }
     }
-    if (!db) { renderBoard(); updatePostUI(); return; }
+    return {
+      id, canPost: !!id && can !== false,
+      why: id ? "You can play, but posting scores needs the owner to give you Contributor access." : "Sign in to claude.ai to post your score.",
+      watch(onData, onError) {
+        db.collection("players").onSnapshot((snap) => {
+          const players = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+          const today = [], all = [];
+          players.forEach((p) => {
+            const days = p.days || {};
+            if (days[TODAY]) today.push({ id: p.id, nick: p.nick, steps: days[TODAY].steps, par: days[TODAY].par, at: days[TODAY].at });
+            const ds = Object.values(days);
+            if (ds.length) all.push({ id: p.id, nick: p.nick, n: ds.length, pars: ds.filter((r) => r.steps <= r.par).length,
+              avg: ds.reduce((s, r) => s + (r.steps - r.par), 0) / ds.length });
+          });
+          onData({ today, all });
+        }, onError);
+      },
+      async post(nick, path) {
+        const rec = { steps: path.length - 1, par: PAR, start: START, path, at: Date.now() };
+        const ref = db.doc("players/" + id);
+        const snap = await ref.get();
+        if (snap.exists) await ref.update({ nick, days: { [TODAY]: rec } });
+        else await ref.set({ nick, days: { [TODAY]: rec } });
+      },
+    };
+  }
+
+  async function connect() {
+    const cfg = window.POOPLE_CONFIG || {};
     renderBoard();
-    const timer = setTimeout(() => { if (!loaded) $("board").innerHTML = '<p class="empty">Scores can\'t be reached right now. Your game still works.</p>'; }, 10000);
-    db.collection("players").onSnapshot((snap) => {
-      players = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
-      if (!snap.metadata.fromCache) { loaded = true; clearTimeout(timer); }
-      else loaded = true;
+    const timer = setTimeout(() => { if (!board.loaded) { statusMsg = "Scores can't be reached right now. Your game still works."; renderBoard(); } }, 10000);
+    try {
+      if (cfg.supabaseUrl && cfg.supabaseAnonKey) backend = await supabaseBackend(cfg);
+      else if (window.claude && window.claude.use) backend = await claudeBackend();
+    } catch (e) {
+      console.error(e);
+      statusMsg = "The scoreboard couldn't connect (" + ((e && e.message) || "error") + "). Your game still works.";
+    }
+    if (!backend) {
+      clearTimeout(timer);
+      if (statusMsg === "Loading scores…") statusMsg = "The scoreboard isn't connected on this copy of POOPLE.";
+      renderBoard(); updatePostUI(); return;
+    }
+    myId = backend.id;
+    backend.watch((data) => {
+      clearTimeout(timer);
+      board = { today: data.today, all: data.all, loaded: true };
       renderBoard(); updatePostUI();
-    }, (err) => { clearTimeout(timer); $("board").innerHTML = '<p class="empty">The scoreboard stopped updating (' + (err && err.code || "error") + '). Reopen the page to reconnect.</p>'; });
+    }, (err) => {
+      clearTimeout(timer);
+      if (!board.loaded) { statusMsg = "The scoreboard couldn't load (" + ((err && (err.message || err.code)) || "error") + ")."; renderBoard(); }
+    });
+    updatePostUI();
   }
 
   // ---------- countdown ----------
