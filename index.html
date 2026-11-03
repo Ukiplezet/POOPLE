@@ -469,7 +469,7 @@ footer { text-align: center; font-size: .78rem; color: var(--muted); }
 
   // --- Supabase backend (GitHub Pages, Vercel, any static host) ---
   async function supabaseBackend(cfg) {
-    if (!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js");
+    if (!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js");
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     let { data: { session } } = await sb.auth.getSession();
     if (!session) {
