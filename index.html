@@ -422,6 +422,7 @@ footer p { margin: 0; }
     $("submit").disabled = true; $("postnote").textContent = "Posting…";
     try {
       await backend.post(nick, chain.slice());
+      myId = backend.id;
       posted = true; save();
       $("postnote").textContent = "Posted.";
     } catch (e) {
@@ -484,12 +485,29 @@ footer p { margin: 0; }
   async function supabaseBackend(cfg) {
     if (!window.supabase) await loadScript("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.99.3/dist/umd/supabase.js");
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
-    let { data: { session } } = await sb.auth.getSession();
-    if (!session) {
-      const { data, error } = await sb.auth.signInAnonymously();
-      if (error) throw error;
-      session = data.session;
+
+    // Every player is an anonymous Supabase user. Phones can leave the page open for
+    // hours (or block the first sign-in), so check the session again before each post.
+    async function ensureSession(forceNew) {
+      let session = null;
+      if (!forceNew) {
+        const got = await sb.auth.getSession();
+        session = got.data && got.data.session;
+        if (session && session.expires_at && session.expires_at * 1000 < Date.now() + 60000) {
+          const r = await sb.auth.refreshSession();
+          session = (r.data && r.data.session) || null;
+        }
+      }
+      if (!session) {
+        const { data, error } = await sb.auth.signInAnonymously();
+        if (error) throw new Error("couldn't sign you in (" + error.message + ")");
+        session = data.session;
+      }
+      return session;
     }
+    let session = null;
+    try { session = await ensureSession(false); } catch (e) { console.warn(e); }
+
     async function load() {
       const [t, a] = await Promise.all([
         sb.from("scores").select("user_id,nick,steps,par,created_at").eq("day", TODAY).order("steps").order("created_at").limit(200),
@@ -504,19 +522,30 @@ footer p { margin: 0; }
     }
     let push = null;
     async function refresh() { try { push && push.onData(await load()); } catch (e) { push && push.onError(e); } }
-    return {
-      id: session.user.id, canPost: true, why: "",
+    const isAuthError = (e) => /permission denied|jwt|not signed in|invalid claim|unauthori[sz]ed/i.test((e && e.message) || "");
+
+    const api = {
+      id: session ? session.user.id : null, canPost: true, why: "",
       watch(onData, onError) {
         push = { onData, onError }; refresh();
         setInterval(() => { if (!document.hidden) refresh(); }, 30000);
         document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
       },
       async post(nick, path) {
-        const { error } = await sb.rpc("submit_score", { p_nick: nick, p_day: TODAY, p_path: path });
+        const args = { p_nick: nick, p_day: TODAY, p_path: path };
+        session = await ensureSession(false);
+        let { error } = await sb.rpc("submit_score", args);
+        if (error && isAuthError(error)) {
+          // The stored session was rejected: start a fresh one and try once more.
+          session = await ensureSession(true);
+          ({ error } = await sb.rpc("submit_score", args));
+        }
         if (error) throw new Error(error.message);
+        api.id = session.user.id;
         await refresh();
       },
     };
+    return api;
   }
 
   // --- claude.ai artifact backend ---
